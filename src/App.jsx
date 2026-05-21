@@ -4,6 +4,15 @@ import { Toaster } from 'react-hot-toast';
 import { Sidebar } from './components/layout/Sidebar';
 
 // Lazy load pages for code splitting
+import { useSkillStore } from './store/useSkillStore';
+import { useProjectStore } from './store/useProjectStore';
+import { useHabitStore } from './store/useHabitStore';
+import { useGoalStore } from './store/useGoalStore';
+import { useFinanceStore } from './store/useFinanceStore';
+import { useExposureStore } from './store/useExposureStore';
+import { useNetworkStore } from './store/useNetworkStore';
+import { useLearningStore } from './store/useLearningStore';
+import { useKnowledgeStore } from './store/useKnowledgeStore';
 const DashboardPage = React.lazy(() => import('./components/dashboard/DashboardPage'));
 const AnalyticsPage = React.lazy(() => import('./components/analytics/AnalyticsPage'));
 const ExecutionPage = React.lazy(() => import('./components/execution/ExecutionPage'));
@@ -28,10 +37,26 @@ const Placeholder = ({ title }) => (
   </div>
 );
 
+const GlobalSync = () => {
+  React.useEffect(() => {
+    useSkillStore.getState().fetch?.();
+    useProjectStore.getState().fetchProjects?.();
+    useHabitStore.getState().fetchHabits?.();
+    useGoalStore.getState().fetchGoals?.();
+    useFinanceStore.getState().fetchEntries?.();
+    useExposureStore.getState().fetch?.();
+    useNetworkStore.getState().fetchConnections?.();
+    useLearningStore.getState().fetchCourses?.();
+    useKnowledgeStore.getState().fetchItems?.();
+  }, []);
+  return null;
+};
+
 function App() {
   return (
     <Router>
       <div className="flex h-screen bg-[#06060b] text-slate-200 overflow-hidden selection:bg-indigo-500/30">
+        <GlobalSync />
         
         {/* Background Effects */}
         <div className="fixed inset-0 pointer-events-none z-0">

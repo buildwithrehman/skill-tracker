@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabaseClient';
 
 const STORAGE_KEY = 'sf_finance';
 
@@ -40,7 +41,12 @@ function persist(state) {
 
 export const useFinanceStore = create((set, get) => ({
   /** @type {FinanceEntry[]} */
-  entries: loadState()?.entries || [],
+  entries: [],
+
+  fetchEntries: async () => {
+    const { data, error } = await supabase.from('finance_transactions').select('*');
+    if (!error && data) set({ entries: data });
+  },
 
   // ─── CRUD ───────────────────────────────────────────────
 
@@ -48,50 +54,46 @@ export const useFinanceStore = create((set, get) => ({
    * Add a finance entry.
    * @param {Partial<FinanceEntry>} entry
    */
-  addEntry: (entry) =>
-    set((state) => {
-      const now = new Date().toISOString();
-      const newEntry = {
-        id: crypto.randomUUID(),
-        type: 'freelance',
-        amount: 0,
-        description: '',
-        date: now,
-        skillId: null,
-        ...entry,
-        createdAt: now,
-      };
-      const newState = { entries: [...state.entries, newEntry] };
-      persist({ ...state, ...newState });
-      return newState;
-    }),
+  addEntry: async (entry) => {
+    const now = new Date().toISOString();
+    const newEntry = {
+      type: 'freelance',
+      amount: 0,
+      description: '',
+      date: now,
+      skillId: null,
+      ...entry,
+      createdAt: now,
+    };
+    const { data, error } = await supabase.from('finance_transactions').insert([{
+      type: newEntry.type,
+      amount: newEntry.amount,
+      source: newEntry.description,
+      date: newEntry.date,
+      skill_id: newEntry.skillId,
+      created_at: newEntry.createdAt
+    }]).select();
+    if (!error && data) set(state => ({ entries: [...state.entries, { ...newEntry, id: data[0].id }] }));
+  },
 
   /**
    * Update a finance entry by ID.
    * @param {string} id
    * @param {Partial<FinanceEntry>} updates
    */
-  updateEntry: (id, updates) =>
-    set((state) => {
-      const newState = {
-        entries: state.entries.map((e) =>
-          e.id === id ? { ...e, ...updates } : e
-        ),
-      };
-      persist({ ...state, ...newState });
-      return newState;
-    }),
+  updateEntry: async (id, updates) => {
+    const { data, error } = await supabase.from('finance_transactions').update(updates).eq('id', id).select();
+    if (!error && data) set(state => ({ entries: state.entries.map(e => e.id === id ? { ...e, ...updates } : e) }));
+  },
 
   /**
    * Delete a finance entry by ID.
    * @param {string} id
    */
-  deleteEntry: (id) =>
-    set((state) => {
-      const newState = { entries: state.entries.filter((e) => e.id !== id) };
-      persist({ ...state, ...newState });
-      return newState;
-    }),
+  deleteEntry: async (id) => {
+    const { error } = await supabase.from('finance_transactions').delete().eq('id', id);
+    if (!error) set(state => ({ entries: state.entries.filter(e => e.id !== id) }));
+  },
 
   // ─── COMPUTED GETTERS ──────────────────────────────────
 

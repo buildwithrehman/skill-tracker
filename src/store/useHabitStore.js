@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabaseClient';
 
 const STORAGE_KEY = 'sf_habits';
 
@@ -68,11 +69,28 @@ export const useHabitStore = create((set, get) => {
 
   return {
     /** @type {Habit[]} */
-    habits: saved?.habits || [],
+    habits: [],
     /** @type {DeepWorkSession[]} */
     deepWorkSessions: saved?.deepWorkSessions || [],
     /** @type {Record<string, number>} disciplineLog - { 'YYYY-MM-DD': score (1-10) } */
     disciplineLog: saved?.disciplineLog || {},
+
+    fetchHabits: async () => {
+      const { data, error } = await supabase.from('habits').select('*');
+      if (!error && data) {
+        const mapped = data.map(h => ({
+           id: h.id,
+           name: h.title,
+           icon: '✅',
+           frequency: h.category,
+           streak: h.streak,
+           bestStreak: h.streak,
+           completions: h.completions || {},
+           createdAt: h.created_at
+        }));
+        set({ habits: mapped });
+      }
+    },
 
     // ─── HABIT CRUD ─────────────────────────────────────────
 
@@ -80,50 +98,72 @@ export const useHabitStore = create((set, get) => {
      * Add a new habit.
      * @param {Partial<Habit>} habit
      */
-    addHabit: (habit) =>
-      set((state) => {
-        const newHabit = {
-          id: crypto.randomUUID(),
-          name: '',
-          icon: '✅',
-          frequency: 'daily',
-          completions: {},
-          streak: 0,
-          bestStreak: 0,
-          createdAt: new Date().toISOString(),
-          ...habit,
-        };
-        const newState = { ...state, habits: [...state.habits, newHabit] };
-        persist(newState);
-        return { habits: newState.habits };
-      }),
+    addHabit: async (habit) => {
+      const newHabit = {
+        name: '',
+        icon: '✅',
+        frequency: 'daily',
+        completions: {},
+        streak: 0,
+        bestStreak: 0,
+        createdAt: new Date().toISOString(),
+        ...habit,
+      };
+      const { data, error } = await supabase.from('habits').insert([{
+        title: newHabit.name,
+        category: newHabit.frequency,
+        streak: newHabit.streak,
+        completions: newHabit.completions,
+        created_at: newHabit.createdAt
+      }]).select();
+      if (!error && data) {
+        set((state) => {
+          const dbHabit = { ...newHabit, id: data[0].id };
+          const newState = { ...state, habits: [...state.habits, dbHabit] };
+          persist(newState);
+          return { habits: newState.habits };
+        });
+      }
+    },
 
     /**
      * Update a habit by ID.
      * @param {string} id
      * @param {Partial<Habit>} updates
      */
-    updateHabit: (id, updates) =>
-      set((state) => {
-        const newHabits = state.habits.map((h) =>
-          h.id === id ? { ...h, ...updates } : h
-        );
-        const newState = { ...state, habits: newHabits };
-        persist(newState);
-        return { habits: newHabits };
-      }),
+    updateHabit: async (id, updates) => {
+      const dbUpdates = {};
+      if (updates.name) dbUpdates.title = updates.name;
+      if (updates.frequency) dbUpdates.category = updates.frequency;
+      if (updates.streak !== undefined) dbUpdates.streak = updates.streak;
+      if (updates.completions) dbUpdates.completions = updates.completions;
+
+      const { data, error } = await supabase.from('habits').update(dbUpdates).eq('id', id).select();
+      if (!error && data) {
+        set((state) => {
+          const newHabits = state.habits.map((h) => (h.id === id ? { ...h, ...updates } : h));
+          const newState = { ...state, habits: newHabits };
+          persist(newState);
+          return { habits: newHabits };
+        });
+      }
+    },
 
     /**
      * Delete a habit by ID.
      * @param {string} id
      */
-    deleteHabit: (id) =>
-      set((state) => {
-        const newHabits = state.habits.filter((h) => h.id !== id);
-        const newState = { ...state, habits: newHabits };
-        persist(newState);
-        return { habits: newHabits };
-      }),
+    deleteHabit: async (id) => {
+      const { error } = await supabase.from('habits').delete().eq('id', id);
+      if (!error) {
+        set((state) => {
+          const newHabits = state.habits.filter((h) => h.id !== id);
+          const newState = { ...state, habits: newHabits };
+          persist(newState);
+          return { habits: newHabits };
+        });
+      }
+    },
 
     /**
      * Toggle a habit completion for a specific date.

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabaseClient';
 
 const STORAGE_KEY = 'sf_projects';
 
@@ -50,7 +51,24 @@ function persist(state) {
 
 export const useProjectStore = create((set, get) => ({
   /** @type {Project[]} */
-  projects: loadState()?.projects || [],
+  projects: [],
+  
+  fetchProjects: async () => {
+    const { data, error } = await supabase.from('projects').select('*');
+    if (error) console.error('Supabase fetch error:', error);
+    if (!error && data) {
+      const mapped = data.map(p => ({
+        ...p,
+        skillsUsed: p.linked_skills || [],
+        completionPct: p.progress || 0,
+        createdAt: p.created_at,
+        techStack: p.techStack || [],
+        screenshots: p.screenshots || [],
+        teamMembers: p.teamMembers || []
+      }));
+      set({ projects: mapped });
+    }
+  },
 
   // ─── CRUD ───────────────────────────────────────────────
 
@@ -58,60 +76,74 @@ export const useProjectStore = create((set, get) => ({
    * Add a new project.
    * @param {Partial<Project>} project
    */
-  addProject: (project) =>
-    set((state) => {
-      const now = new Date().toISOString();
-      const newProject = {
-        id: crypto.randomUUID(),
-        title: '',
-        description: '',
-        techStack: [],
-        skillsUsed: [],
-        difficulty: 3,
-        completionPct: 0,
-        githubUrl: '',
-        demoUrl: '',
-        problemsFaced: '',
-        lessonsLearned: '',
-        screenshots: [],
-        teamMembers: [],
-        status: 'planning',
-        startDate: null,
-        endDate: null,
-        ...project,
-        createdAt: now,
-      };
-      const newState = { projects: [...state.projects, newProject] };
-      persist({ ...state, ...newState });
-      return newState;
-    }),
+  addProject: async (project) => {
+    const now = new Date().toISOString();
+    const newProject = {
+      title: '',
+      description: '',
+      techStack: [],
+      skillsUsed: [],
+      difficulty: 3,
+      completionPct: 0,
+      githubUrl: '',
+      demoUrl: '',
+      problemsFaced: '',
+      lessonsLearned: '',
+      screenshots: [],
+      teamMembers: [],
+      status: 'planning',
+      startDate: null,
+      endDate: null,
+      ...project,
+      createdAt: now,
+    };
+    const { data, error } = await supabase.from('projects').insert([{
+      title: newProject.title,
+      description: newProject.description,
+      status: newProject.status,
+      linked_skills: newProject.skillsUsed || [],
+      progress: newProject.completionPct || 0,
+      created_at: newProject.createdAt
+    }]).select();
+    if (error) console.error('Supabase insert error:', error);
+    if (!error && data) {
+      set(state => ({ projects: [...state.projects, { ...newProject, id: data[0].id }] }));
+    }
+  },
 
   /**
    * Update a project by ID.
    * @param {string} id
    * @param {Partial<Project>} updates
    */
-  updateProject: (id, updates) =>
-    set((state) => {
-      const newState = {
-        projects: state.projects.map((p) =>
-          p.id === id ? { ...p, ...updates } : p
-        ),
-      };
-      persist({ ...state, ...newState });
-      return newState;
-    }),
+  updateProject: async (id, updates) => {
+    const dbUpdates = {};
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.skillsUsed !== undefined) dbUpdates.linked_skills = updates.skillsUsed;
+    if (updates.completionPct !== undefined) dbUpdates.progress = updates.completionPct;
+    
+    if (Object.keys(dbUpdates).length === 0) {
+      set(state => ({ projects: state.projects.map(p => p.id === id ? { ...p, ...updates } : p) }));
+      return;
+    }
+
+    const { data, error } = await supabase.from('projects').update(dbUpdates).eq('id', id).select();
+    if (error) console.error('Supabase update error:', error);
+    if (!error && data) {
+      set(state => ({ projects: state.projects.map(p => p.id === id ? { ...p, ...updates } : p) }));
+    }
+  },
 
   /**
    * Delete a project by ID.
    * @param {string} id
    */
-  deleteProject: (id) =>
-    set((state) => {
-      const newState = { projects: state.projects.filter((p) => p.id !== id) };
-      persist({ ...state, ...newState });
-      return newState;
-    }),
+  deleteProject: async (id) => {
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (!error) set(state => ({ projects: state.projects.filter(p => p.id !== id) }));
+  },
 
   /**
    * Update project completion percentage.

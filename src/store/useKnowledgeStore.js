@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabaseClient';
 
 const STORAGE_KEY = 'sf_knowledgestore';
 
@@ -7,25 +8,53 @@ function loadState() {
 }
 
 export const useKnowledgeStore = create((set, get) => ({
-  items: loadState()?.items || [],
+  items: [],
   
-  add: (item) => set(state => {
-    const newState = { items: [...state.items, { id: crypto.randomUUID(), ...item, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, ...newState }));
-    return newState;
-  }),
+  fetchItems: async () => {
+    const { data, error } = await supabase.from('knowledge_items').select('*');
+    if (!error && data) {
+      const mapped = data.map(i => ({
+        ...i,
+        content: i.summary,
+        dateAdded: i.date_added,
+        dateRead: i.date_read,
+        isRead: i.is_read
+      }));
+      set({ items: mapped });
+    }
+  },
   
-  update: (id, updates) => set(state => {
-    const newState = { items: state.items.map(i => i.id === id ? { ...i, ...updates, updatedAt: new Date().toISOString() } : i) };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, ...newState }));
-    return newState;
-  }),
+  add: async (item) => {
+    const { data, error } = await supabase.from('knowledge_items').insert([{
+      title: item.title,
+      url: item.url,
+      tags: item.tags || [],
+      summary: item.content || item.summary,
+      is_read: false,
+      date_added: new Date().toISOString()
+    }]).select();
+    if (!error && data) {
+      set(state => ({ items: [...state.items, { ...data[0], content: data[0].summary }] }));
+    }
+  },
   
-  remove: (id) => set(state => {
-    const newState = { items: state.items.filter(i => i.id !== id) };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, ...newState }));
-    return newState;
-  }),
+  update: async (id, updates) => {
+    const dbUpdates = { ...updates };
+    if (updates.content) dbUpdates.summary = updates.content;
+    if (updates.isRead !== undefined) dbUpdates.is_read = updates.isRead;
+    
+    const { data, error } = await supabase.from('knowledge_items').update(dbUpdates).eq('id', id).select();
+    if (!error && data) {
+      set(state => ({ items: state.items.map(i => i.id === id ? { ...data[0], content: data[0].summary } : i) }));
+    }
+  },
+  
+  remove: async (id) => {
+    const { error } = await supabase.from('knowledge_items').delete().eq('id', id);
+    if (!error) {
+      set(state => ({ items: state.items.filter(i => i.id !== id) }));
+    }
+  },
 
   search: (query) => {
     const q = query.toLowerCase();

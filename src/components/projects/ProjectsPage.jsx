@@ -7,7 +7,7 @@ import { Modal } from '../shared/Modal';
 import { ProgressBar } from '../shared/ProgressBar';
 
 export default function ProjectsPage() {
-  const { projects, add, remove, updateStatus } = useProjectStore();
+  const { projects, addProject, deleteProject } = useProjectStore();
   const { items: skills } = useSkillStore();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,7 +24,7 @@ export default function ProjectsPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    add({
+    addProject({
       title,
       description,
       status,
@@ -95,7 +95,7 @@ export default function ProjectsPage() {
                 <p className="text-sm text-slate-400 line-clamp-2">{proj.description}</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => remove(proj.id)} className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-rose-400 transition-colors">
+                <button onClick={() => deleteProject(proj.id)} className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-rose-400 transition-colors">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                 </button>
               </div>

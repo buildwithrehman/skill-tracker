@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabaseClient';
 
 const STORAGE_KEY = 'sf_goals';
 
@@ -43,7 +44,20 @@ function persist(state) {
 
 export const useGoalStore = create((set, get) => ({
   /** @type {Goal[]} */
-  goals: loadState()?.goals || [],
+  goals: [],
+
+  fetchGoals: async () => {
+    const { data, error } = await supabase.from('goals').select('*');
+    if (!error && data) {
+      // Map DB columns to frontend camelCase
+      const mapped = data.map(g => ({
+        ...g,
+        completedAt: g.completed_at,
+        createdAt: g.created_at
+      }));
+      set({ goals: mapped });
+    }
+  },
 
   // ─── CRUD ───────────────────────────────────────────────
 
@@ -51,53 +65,61 @@ export const useGoalStore = create((set, get) => ({
    * Add a new goal.
    * @param {Partial<Goal>} goal
    */
-  addGoal: (goal) =>
-    set((state) => {
-      const now = new Date().toISOString();
-      const newGoal = {
-        id: crypto.randomUUID(),
-        title: '',
-        type: 'weekly',
-        skillId: null,
-        targetValue: 100,
-        currentValue: 0,
-        deadline: '',
-        completed: false,
-        completedAt: null,
-        ...goal,
-        createdAt: now,
-      };
-      const newState = { goals: [...state.goals, newGoal] };
-      persist({ ...state, ...newState });
-      return newState;
-    }),
+  addGoal: async (goal) => {
+    const now = new Date().toISOString();
+    const newGoal = {
+      title: '',
+      type: 'weekly',
+      skillId: null,
+      targetValue: 100,
+      currentValue: 0,
+      deadline: '',
+      completed: false,
+      completedAt: null,
+      ...goal,
+      createdAt: now,
+    };
+    const { data, error } = await supabase.from('goals').insert([{
+      title: newGoal.title,
+      description: newGoal.type, // Map type to description for now
+      deadline: newGoal.deadline || null,
+      category: newGoal.skillId,
+      completed: newGoal.completed,
+      completed_at: newGoal.completedAt,
+      created_at: newGoal.createdAt
+    }]).select();
+    if (!error && data) {
+      set((state) => ({ goals: [...state.goals, { ...newGoal, id: data[0].id }] }));
+    }
+  },
 
   /**
    * Update a goal by ID.
    * @param {string} id
    * @param {Partial<Goal>} updates
    */
-  updateGoal: (id, updates) =>
-    set((state) => {
-      const newState = {
-        goals: state.goals.map((g) =>
-          g.id === id ? { ...g, ...updates } : g
-        ),
-      };
-      persist({ ...state, ...newState });
-      return newState;
-    }),
+  updateGoal: async (id, updates) => {
+    const dbUpdates = { ...updates };
+    if (updates.completedAt !== undefined) dbUpdates.completed_at = updates.completedAt;
+    
+    const { data, error } = await supabase.from('goals').update(dbUpdates).eq('id', id).select();
+    if (!error && data) {
+      set((state) => ({
+        goals: state.goals.map((g) => (g.id === id ? { ...g, ...updates } : g)),
+      }));
+    }
+  },
 
   /**
    * Delete a goal by ID.
    * @param {string} id
    */
-  deleteGoal: (id) =>
-    set((state) => {
-      const newState = { goals: state.goals.filter((g) => g.id !== id) };
-      persist({ ...state, ...newState });
-      return newState;
-    }),
+  deleteGoal: async (id) => {
+    const { error } = await supabase.from('goals').delete().eq('id', id);
+    if (!error) {
+      set((state) => ({ goals: state.goals.filter((g) => g.id !== id) }));
+    }
+  },
 
   /**
    * Increment the current value of a goal.

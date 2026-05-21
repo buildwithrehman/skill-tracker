@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabaseClient';
 
 const STORAGE_KEY = 'sf_learning';
 
@@ -75,11 +76,24 @@ function persist(state) {
 
 export const useLearningStore = create((set, get) => ({
   /** @type {Course[]} */
-  courses: loadState()?.courses || [],
+  courses: [],
   /** @type {Flashcard[]} */
   flashcards: loadState()?.flashcards || [],
   /** @type {QuizScore[]} */
   quizScores: loadState()?.quizScores || [],
+
+  fetchCourses: async () => {
+    const { data, error } = await supabase.from('courses').select('*');
+    if (!error && data) {
+      const mapped = data.map(c => ({
+        ...c,
+        skillIds: c.skill_id ? [c.skill_id] : [],
+        completedDate: c.progress === 100 ? c.created_at : null,
+        createdAt: c.created_at
+      }));
+      set({ courses: mapped });
+    }
+  },
 
   // ─── COURSE CRUD ────────────────────────────────────────
 
@@ -87,54 +101,60 @@ export const useLearningStore = create((set, get) => ({
    * Add a new learning resource (course/book/video/audiobook).
    * @param {Partial<Course>} course
    */
-  addCourse: (course) =>
-    set((state) => {
-      const newCourse = {
-        id: crypto.randomUUID(),
-        type: 'course',
-        title: '',
-        platform: '',
-        url: '',
-        progress: 0,
-        rating: 0,
-        notes: '',
-        keyTakeaways: [],
-        startDate: null,
-        completedDate: null,
-        skillIds: [],
-        ...course,
-      };
-      const newState = { ...state, courses: [...state.courses, newCourse] };
-      persist(newState);
-      return { courses: newState.courses };
-    }),
+  addCourse: async (course) => {
+    const newCourse = {
+      type: 'course',
+      title: '',
+      platform: '',
+      url: '',
+      progress: 0,
+      rating: 0,
+      notes: '',
+      keyTakeaways: [],
+      startDate: null,
+      completedDate: null,
+      skillIds: [],
+      ...course,
+    };
+    const { data, error } = await supabase.from('courses').insert([{
+      title: newCourse.title,
+      platform: newCourse.platform,
+      url: newCourse.url,
+      status: newCourse.progress === 100 ? 'Completed' : 'Not Started',
+      progress: newCourse.progress,
+      skill_id: newCourse.skillIds[0] || null,
+      created_at: new Date().toISOString()
+    }]).select();
+    if (!error && data) {
+      set((state) => ({ courses: [...state.courses, { ...newCourse, id: data[0].id }] }));
+    }
+  },
 
   /**
    * Update a course by ID.
    * @param {string} id
    * @param {Partial<Course>} updates
    */
-  updateCourse: (id, updates) =>
-    set((state) => {
-      const newCourses = state.courses.map((c) =>
-        c.id === id ? { ...c, ...updates } : c
-      );
-      const newState = { ...state, courses: newCourses };
-      persist(newState);
-      return { courses: newCourses };
-    }),
+  updateCourse: async (id, updates) => {
+    const dbUpdates = { ...updates };
+    if (updates.skillIds && updates.skillIds.length > 0) dbUpdates.skill_id = updates.skillIds[0];
+    
+    const { data, error } = await supabase.from('courses').update(dbUpdates).eq('id', id).select();
+    if (!error && data) {
+      set((state) => ({ courses: state.courses.map((c) => (c.id === id ? { ...c, ...updates } : c)) }));
+    }
+  },
 
   /**
    * Delete a course by ID.
    * @param {string} id
    */
-  deleteCourse: (id) =>
-    set((state) => {
-      const newCourses = state.courses.filter((c) => c.id !== id);
-      const newState = { ...state, courses: newCourses };
-      persist(newState);
-      return { courses: newCourses };
-    }),
+  deleteCourse: async (id) => {
+    const { error } = await supabase.from('courses').delete().eq('id', id);
+    if (!error) {
+      set((state) => ({ courses: state.courses.filter((c) => c.id !== id) }));
+    }
+  },
 
   /**
    * Update course progress and auto-complete if 100%.
