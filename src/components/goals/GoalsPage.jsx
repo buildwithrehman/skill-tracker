@@ -8,7 +8,7 @@ import { ProgressBar } from '../shared/ProgressBar';
 import { format, differenceInDays } from 'date-fns';
 
 export default function GoalsPage() {
-  const { goals, add, remove, toggleComplete } = useGoalStore();
+  const { goals, addGoal, deleteGoal, completeGoal, reopenGoal } = useGoalStore();
   const { items: skills } = useSkillStore();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,13 +20,15 @@ export default function GoalsPage() {
   const [targetValue, setTargetValue] = useState(1);
   const [deadline, setDeadline] = useState(new Date().toISOString().split('T')[0]);
 
+  const handleCloseGoalsModal = () => setIsModalOpen(false);
+
   const activeGoals = goals.filter(g => !g.completed);
   const completedGoals = goals.filter(g => g.completed);
   const displayGoals = tab === 'active' ? activeGoals : completedGoals;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    add({ title, type, skillId, targetValue: parseInt(targetValue), deadline, completed: false });
+    addGoal({ title, type, skillId, targetValue: parseInt(targetValue), deadline, completed: false });
     setIsModalOpen(false);
     setTitle('');
   };
@@ -72,7 +74,7 @@ export default function GoalsPage() {
               <div>
                 <div className="flex justify-between items-start mb-2">
                   <h3 className={`font-bold ${goal.completed ? 'text-emerald-100 line-through' : 'text-slate-100'}`}>{goal.title}</h3>
-                  <button onClick={() => toggleComplete(goal.id)} className={`p-1.5 rounded-full transition-colors ${goal.completed ? 'text-emerald-400 bg-emerald-400/20' : 'text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10'}`}>
+                  <button onClick={() => goal.completed ? reopenGoal(goal.id) : completeGoal(goal.id)} className={`p-1.5 rounded-full transition-colors ${goal.completed ? 'text-emerald-400 bg-emerald-400/20' : 'text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10'}`}>
                     <CheckCircle2 size={20} />
                   </button>
                 </div>
@@ -95,7 +97,7 @@ export default function GoalsPage() {
                     <Clock size={14} />
                     {daysLeft < 0 ? `Overdue by ${Math.abs(daysLeft)} days` : daysLeft === 0 ? 'Due Today' : `${daysLeft} days left`}
                   </div>
-                  <button onClick={() => remove(goal.id)} className="text-xs text-slate-500 hover:text-rose-400">Delete</button>
+                  <button onClick={() => deleteGoal(goal.id)} className="text-xs text-slate-500 hover:text-rose-400">Delete</button>
                 </div>
               )}
             </motion.div>
@@ -104,7 +106,7 @@ export default function GoalsPage() {
         {displayGoals.length === 0 && <div className="col-span-full py-10 text-center text-slate-500">No goals found here.</div>}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Set Goal">
+      <Modal isOpen={isModalOpen} onClose={handleCloseGoalsModal} title="Set Goal">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-1">Goal Objective</label>

@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 
 export default function ExecutionPage() {
   const { focusSkillId } = useProfileStore();
-  const { items: goals } = useGoalStore();
+  const { goals } = useGoalStore();
   
   const [timer, setTimer] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);

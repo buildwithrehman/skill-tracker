@@ -26,3 +26,6 @@ dist-ssr
 # API Keys
 .env
 .env.*
+
+# Tests
+coverage/

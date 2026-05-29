@@ -12,6 +12,8 @@ export default function ExposurePage() {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
+  const handleCloseExposureModal = () => setIsModalOpen(false);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     add({ title, type, description, date });
@@ -69,7 +71,7 @@ export default function ExposurePage() {
         {entries.length === 0 && <div className="col-span-full py-12 text-center text-slate-500">No real-world exposure logged yet. Start building your portfolio!</div>}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Log Experience">
+      <Modal isOpen={isModalOpen} onClose={handleCloseExposureModal} title="Log Experience">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-1">Title</label>

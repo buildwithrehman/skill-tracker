@@ -52,7 +52,7 @@ const GlobalSync = () => {
   return null;
 };
 
-function App() {
+const App = () => {
   return (
     <Router>
       <div className="flex h-screen bg-[#06060b] text-slate-200 overflow-hidden selection:bg-indigo-500/30">

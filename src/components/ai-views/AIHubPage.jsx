@@ -16,6 +16,8 @@ export default function AIHubPage() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
+  const handleCloseAIHubModal = () => setActiveModule(null);
+
   const modules = [
     { id: 'generator', name: 'AI Project Generator', icon: Code, desc: 'Invents hyper-personalized projects for your exact skill profile.' },
     { id: 'gap', name: 'Gap Detector', icon: Target, desc: 'Finds missing fundamentals preventing you from getting hired.' },
@@ -108,7 +110,7 @@ export default function AIHubPage() {
         ))}
       </div>
 
-      <Modal isOpen={!!activeModule} onClose={() => setActiveModule(null)} title={activeModule?.name || 'AI Analysis'} maxWidth="max-w-3xl">
+      <Modal isOpen={!!activeModule} onClose={handleCloseAIHubModal} title={activeModule?.name || 'AI Analysis'} maxWidth="max-w-3xl">
         <div className="min-h-[200px] flex flex-col">
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center text-indigo-400 space-y-4 py-12">

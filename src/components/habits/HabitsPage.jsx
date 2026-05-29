@@ -5,14 +5,14 @@ import { useHabitStore } from '../../store/useHabitStore';
 import { Modal } from '../shared/Modal';
 
 export default function HabitsPage() {
-  const { habits, add, remove, toggleCompletion } = useHabitStore();
+  const { habits, addHabit, deleteHabit, toggleCompletion } = useHabitStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
   const today = new Date().toISOString().split('T')[0];
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    add({ name, frequency: 'daily' });
+    addHabit({ name, frequency: 'daily' });
     setIsModalOpen(false);
     setName('');
   };
@@ -58,7 +58,7 @@ export default function HabitsPage() {
                     <p className="text-xs text-slate-500">Current Streak: <span className="font-bold text-amber-400">{habit.streak || 0} 🔥</span></p>
                   </div>
                 </div>
-                <button onClick={() => remove(habit.id)} className="text-slate-500 hover:text-rose-400 p-2">
+                <button onClick={() => deleteHabit(habit.id)} className="text-slate-500 hover:text-rose-400 p-2">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                 </button>
               </motion.div>

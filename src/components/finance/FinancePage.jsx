@@ -5,7 +5,7 @@ import { useSkillStore } from '../../store/useSkillStore';
 import { Modal } from '../shared/Modal';
 
 export default function FinancePage() {
-  const { entries, add, remove } = useFinanceStore();
+  const { entries, addEntry, deleteEntry } = useFinanceStore();
   const { items: skills } = useSkillStore();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -14,12 +14,14 @@ export default function FinancePage() {
   const [type, setType] = useState('income');
   const [skillId, setSkillId] = useState('');
 
+  const handleCloseFinanceModal = () => setIsModalOpen(false);
+
   const totalIncome = entries.filter(e => e.type === 'income').reduce((sum, e) => sum + Number(e.amount), 0);
   const totalInvested = entries.filter(e => e.type === 'investment').reduce((sum, e) => sum + Number(e.amount), 0);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    add({ title, amount: Number(amount), type, skillId });
+    addEntry({ title, amount: Number(amount), type, skillId });
     setIsModalOpen(false);
     setTitle(''); setAmount(''); setSkillId('');
   };
@@ -86,7 +88,7 @@ export default function FinancePage() {
                   <span className={`font-bold ${entry.type === 'income' ? 'text-emerald-400' : 'text-indigo-400'}`}>
                     {entry.type === 'income' ? '+' : ''}${entry.amount.toLocaleString()}
                   </span>
-                  <button onClick={() => remove(entry.id)} className="text-slate-500 hover:text-rose-400 p-2">
+                  <button onClick={() => deleteEntry(entry.id)} className="text-slate-500 hover:text-rose-400 p-2">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -97,7 +99,7 @@ export default function FinancePage() {
         </div>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Financial Entry">
+      <Modal isOpen={isModalOpen} onClose={handleCloseFinanceModal} title="Add Financial Entry">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-1">Title / Description</label>

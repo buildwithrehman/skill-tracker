@@ -12,5 +12,11 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/openai/, ''),
       }
     }
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
+    css: true,
   }
 })
